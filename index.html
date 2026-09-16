@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
- <title>bizcard-scan</title>
+  <title>bizcard-scan</title>
+
   <!-- PWA & アプリアイコン設定（実ファイル参照版） -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -11,10 +12,10 @@
   <meta name="apple-mobile-web-app-title" content="bizcard-scan">
   <meta name="theme-color" content="#0284c7">
 
- <link rel="manifest" href="manifest.json">
-<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
-<link rel="apple-touch-icon" href="icon-180.png">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+  <link rel="apple-touch-icon" href="icon-180.png">
 
   <style>
     :root {
@@ -49,7 +50,7 @@
       display: flex;
       justify-content: center;
       min-height: 100vh;
-      padding-bottom: 100px;
+      padding-bottom: 110px;
     }
 
     .app-container {
@@ -112,11 +113,12 @@
       background: transparent;
       padding: 10px;
       border-radius: 8px;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       font-weight: 700;
       color: var(--text-muted);
       cursor: pointer;
       transition: all 0.2s ease;
+      white-space: nowrap;
     }
     .mode-btn:active {
       transform: scale(0.98);
@@ -157,18 +159,17 @@
       background: var(--card-bg);
       border: 1px dashed #cbd5e1;
       border-radius: 12px;
-      min-height: 170px;
+      min-height: 160px;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       cursor: pointer;
       overflow: hidden;
-      transition: background 0.15s ease, border-color 0.15s ease;
+      transition: background 0.15s ease;
     }
     .dropzone:active {
       background: var(--card-active);
-      transform: scale(0.99);
     }
     .dropzone input[type="file"] {
       position: absolute;
@@ -204,8 +205,8 @@
       width: 100%;
       height: 100%;
       object-fit: contain;
-      max-height: 220px;
-      background: #000000;
+      max-height: 200px;
+      background: #000;
     }
 
     .retake-overlay {
@@ -221,6 +222,29 @@
       border-radius: 9999px;
       pointer-events: none;
       display: none;
+    }
+
+    /* 一括選択サムネイルグリッド */
+    .batch-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      max-height: 220px;
+      overflow-y: auto;
+      padding: 4px 0;
+    }
+    .batch-thumb-item {
+      position: relative;
+      aspect-ratio: 16 / 10;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: #000;
+    }
+    .batch-thumb-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
     }
 
     .sticky-footer {
@@ -283,12 +307,12 @@
       background: var(--surface);
       border-radius: 16px;
       padding: 24px;
-      width: 80%;
-      max-width: 300px;
+      width: 85%;
+      max-width: 320px;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 16px;
+      gap: 14px;
       box-shadow: var(--shadow-lg);
       text-align: center;
     }
@@ -304,15 +328,15 @@
       to { transform: rotate(360deg); }
     }
     .loading-text {
-      font-size: 0.9rem;
+      font-size: 0.95rem;
       font-weight: 700;
       color: var(--primary);
       margin: 0;
     }
     .loading-sub {
-      font-size: 0.75rem;
+      font-size: 0.8rem;
       color: var(--text-muted);
-      margin: -8px 0 0 0;
+      margin: 0;
     }
 
     .toast-container {
@@ -347,12 +371,8 @@
       transform: translateY(0);
       opacity: 1;
     }
-    .toast.success {
-      background: var(--success);
-    }
-    .toast.error {
-      background: var(--error);
-    }
+    .toast.success { background: var(--success); }
+    .toast.error { background: var(--error); }
   </style>
 </head>
 <body>
@@ -366,15 +386,18 @@
       </div>
     </header>
 
+    <!-- モード切り替えタブ（片面 / 両面 / 一括） -->
     <nav class="mode-tabs">
       <button type="button" class="mode-btn active" id="modeSingle" onclick="switchMode('single')">片面撮影</button>
       <button type="button" class="mode-btn" id="modeDouble" onclick="switchMode('double')">両面撮影</button>
+      <button type="button" class="mode-btn" id="modeBatch" onclick="switchMode('batch')">一括 (最大15枚)</button>
     </nav>
 
-    <div class="scan-card">
+    <!-- 表面カード -->
+    <div class="scan-card" id="cardFront">
       <div class="card-label">
         <span id="frontTitle">表面 (Front)</span>
-        <span class="badge" id="frontBadge">必須 / Required</span>
+        <span class="badge" id="frontBadge">必須</span>
       </div>
       <div class="dropzone" id="dzFront">
         <input type="file" id="fileFront" accept="image/*" capture="environment">
@@ -386,14 +409,15 @@
           <span id="tapFrontText">タップして撮影</span>
         </div>
         <img id="prevFront" class="dropzone-preview" alt="Front Preview">
-        <div class="retake-overlay" id="retakeFront">再撮影 / Retake</div>
+        <div class="retake-overlay" id="retakeFront">再撮影</div>
       </div>
     </div>
 
+    <!-- 裏面カード（両面モード用） -->
     <div class="scan-card" id="cardBack" style="display: none;">
       <div class="card-label">
         <span id="backTitle">裏面 (Back)</span>
-        <span class="badge" id="backBadge">必須 / Required</span>
+        <span class="badge" id="backBadge">必須</span>
       </div>
       <div class="dropzone" id="dzBack">
         <input type="file" id="fileBack" accept="image/*" capture="environment">
@@ -405,11 +429,32 @@
           <span id="tapBackText">タップして撮影</span>
         </div>
         <img id="prevBack" class="dropzone-preview" alt="Back Preview">
-        <div class="retake-overlay" id="retakeBack">再撮影 / Retake</div>
+        <div class="retake-overlay" id="retakeBack">再撮影</div>
       </div>
+    </div>
+
+    <!-- 一括選択カード（一括モード用） -->
+    <div class="scan-card" id="cardBatch" style="display: none;">
+      <div class="card-label">
+        <span id="batchTitle">アルバムから一括選択</span>
+        <span class="badge" id="batchBadge">最大15枚</span>
+      </div>
+      <div class="dropzone" id="dzBatch">
+        <input type="file" id="fileBatch" accept="image/*" multiple>
+        <div class="dropzone-empty" id="emptyBatch">
+          <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <polyline points="21 15 16 10 5 21"/>
+          </svg>
+          <span id="tapBatchText">タップして写真を選択</span>
+        </div>
+      </div>
+      <div class="batch-grid" id="batchGrid"></div>
     </div>
   </div>
 
+  <!-- 下部固定送信ボタン -->
   <div class="sticky-footer">
     <div class="footer-inner">
       <button type="button" class="submit-btn" id="submitBtn" disabled onclick="handleUpload()">
@@ -418,6 +463,7 @@
     </div>
   </div>
 
+  <!-- 処理中ローディングオーバーレイ -->
   <div class="loading-overlay" id="loadingOverlay">
     <div class="loading-box">
       <div class="spinner"></div>
@@ -426,52 +472,68 @@
     </div>
   </div>
 
+  <!-- トースト通知 -->
   <div class="toast-container">
     <div class="toast" id="toast"></div>
   </div>
 
   <script>
-    // ▼▼▼ ここをあなたのGASデプロイURL（.../exec で終わるもの）に書き換えてください ▼▼▼
     const GAS_URL = "https://script.google.com/macros/s/AKfycbwuw0JsXEABa1m6C7B1SGkNlHL5uhj9-YC0gLuSg4pW-QAa2o_YxUO8upmcnnivAXRr6g/exec";
-    // ▲▲▲ ここまで ▲▲▲
 
     let currentLang = 'JP';
     let currentMode = 'single';
     let base64Front = null;
     let base64Back = null;
+    let batchImagesBase64 = [];
 
     const dict = {
       JP: {
         modeSingle: '片面撮影',
         modeDouble: '両面撮影',
+        modeBatch: '一括 (最大15枚)',
         frontTitle: '表面',
         backTitle: '裏面',
+        batchTitle: 'アルバムから一括選択',
         badgeRequired: '必須',
+        badgeLimit: '最大15枚',
         tapToScan: 'タップして撮影',
+        tapToBatch: 'タップして写真を選択',
         retake: '再撮影',
         btnNeedPhoto: '写真を撮影してください',
         btnNeedBackPhoto: '裏面を撮影してください',
+        btnNeedBatchPhoto: '写真を選択してください',
         btnSubmit: '読み込んで登録する (JP)',
+        btnSubmitBatch: (cnt) => `${cnt} 枚を一括登録する (JP)`,
         loadingTitle: 'AI解析中...',
         loadingSub: 'スプレッドシートへ登録しています',
         success: '登録が完了しました！',
-        errorNet: '通信エラーが発生しました'
+        successBatch: (cnt) => `全 ${cnt} 枚の登録が完了しました！`,
+        errorNet: '通信エラーが発生しました',
+        errorLimit: '一度に選択できるのは最大15枚までです'
       },
       VN: {
         modeSingle: 'Chụp 1 mặt',
         modeDouble: 'Chụp 2 mặt',
+        modeBatch: 'Hàng loạt (Tối đa 15)',
         frontTitle: 'Mặt trước',
         backTitle: 'Mặt sau',
+        batchTitle: 'Chọn nhiều ảnh từ album',
         badgeRequired: 'Bắt buộc',
+        badgeLimit: 'Tối đa 15',
         tapToScan: 'Chạm để chụp ảnh',
+        tapToBatch: 'Chạm để chọn ảnh',
         retake: 'Chụp lại',
         btnNeedPhoto: 'Vui lòng chụp ảnh danh thiếp',
         btnNeedBackPhoto: 'Vui lòng chụp thêm mặt sau',
+        btnNeedBatchPhoto: 'Vui lòng chọn ảnh',
         btnSubmit: 'Quét và Lưu vào VN',
+        btnSubmitBatch: (cnt) => `Lưu liên tục ${cnt} danh thiếp vào VN`,
         loadingTitle: 'Đang phân tích...',
         loadingSub: 'Đang lưu dữ liệu vào Google Sheet',
         success: 'Đã lưu thành công!',
-        errorNet: 'Đã xảy ra lỗi kết nối'
+        successBatch: (cnt) => `Đã hoàn tất lưu ${cnt} danh thiếp!`,
+        errorNet: 'Đã xảy ra lỗi kết nối',
+        errorLimit: 'Chỉ có thể chọn tối đa 15 ảnh cùng lúc'
       }
     };
 
@@ -483,16 +545,18 @@
       const d = dict[currentLang];
       document.getElementById('modeSingle').innerText = d.modeSingle;
       document.getElementById('modeDouble').innerText = d.modeDouble;
+      document.getElementById('modeBatch').innerText = d.modeBatch;
       document.getElementById('frontTitle').innerText = d.frontTitle;
       document.getElementById('backTitle').innerText = d.backTitle;
+      document.getElementById('batchTitle').innerText = d.batchTitle;
       document.getElementById('frontBadge').innerText = d.badgeRequired;
       document.getElementById('backBadge').innerText = d.badgeRequired;
+      document.getElementById('batchBadge').innerText = d.badgeLimit;
       document.getElementById('tapFrontText').innerText = d.tapToScan;
       document.getElementById('tapBackText').innerText = d.tapToScan;
+      document.getElementById('tapBatchText').innerText = d.tapToBatch;
       document.getElementById('retakeFront').innerText = d.retake;
       document.getElementById('retakeBack').innerText = d.retake;
-      document.getElementById('loadingTitle').innerText = d.loadingTitle;
-      document.getElementById('loadingSubtitle').innerText = d.loadingSub;
 
       updateButtonState();
     }
@@ -501,19 +565,32 @@
       currentMode = mode;
       document.getElementById('modeSingle').classList.toggle('active', mode === 'single');
       document.getElementById('modeDouble').classList.toggle('active', mode === 'double');
-      document.getElementById('cardBack').style.display = mode === 'double' ? 'flex' : 'none';
+      document.getElementById('modeBatch').classList.toggle('active', mode === 'batch');
+
+      if (mode === 'single') {
+        document.getElementById('cardFront').style.display = 'flex';
+        document.getElementById('cardBack').style.display = 'none';
+        document.getElementById('cardBatch').style.display = 'none';
+      } else if (mode === 'double') {
+        document.getElementById('cardFront').style.display = 'flex';
+        document.getElementById('cardBack').style.display = 'flex';
+        document.getElementById('cardBatch').style.display = 'none';
+      } else if (mode === 'batch') {
+        document.getElementById('cardFront').style.display = 'none';
+        document.getElementById('cardBack').style.display = 'none';
+        document.getElementById('cardBatch').style.display = 'flex';
+      }
 
       updateButtonState();
     }
 
-function setupFileInput(inputId, emptyId, prevId, retakeId, onDone) {
+    function setupFileInput(inputId, emptyId, prevId, retakeId, onDone) {
       document.getElementById(inputId).addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (!file) return;
 
         const reader = new FileReader();
         reader.onload = function(evt) {
-          // 長辺900px・品質0.68で圧縮実行
           compressImage(evt.target.result, 900, 0.68, function(compressedBase64) {
             const preview = document.getElementById(prevId);
             preview.src = compressedBase64;
@@ -532,6 +609,45 @@ function setupFileInput(inputId, emptyId, prevId, retakeId, onDone) {
     setupFileInput('fileFront', 'emptyFront', 'prevFront', 'retakeFront', (b64) => { base64Front = b64; });
     setupFileInput('fileBack', 'emptyBack', 'prevBack', 'retakeBack', (b64) => { base64Back = b64; });
 
+    // 一括写真選択
+    document.getElementById('fileBatch').addEventListener('change', async function(e) {
+      const files = Array.from(e.target.files);
+      if (files.length === 0) return;
+
+      if (files.length > 15) {
+        showToast(dict[currentLang].errorLimit, 'error');
+        this.value = '';
+        return;
+      }
+
+      batchImagesBase64 = [];
+      const grid = document.getElementById('batchGrid');
+      grid.innerHTML = '';
+
+      for (const file of files) {
+        const b64 = await readFileAsBase64(file);
+        const compressed = await new Promise((resolve) => compressImage(b64, 900, 0.68, resolve));
+        batchImagesBase64.push(compressed);
+
+        const item = document.createElement('div');
+        item.className = 'batch-thumb-item';
+        const img = document.createElement('img');
+        img.src = compressed;
+        item.appendChild(img);
+        grid.appendChild(item);
+      }
+
+      updateButtonState();
+    });
+
+    function readFileAsBase64(file) {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.readAsDataURL(file);
+      });
+    }
+
     function compressImage(src, maxWidth, quality, cb) {
       const img = new Image();
       img.src = src;
@@ -548,14 +664,10 @@ function setupFileInput(inputId, emptyId, prevId, retakeId, onDone) {
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, w, h);
 
-        // 初回圧縮
         let result = canvas.toDataURL('image/jpeg', quality);
-
-        // 100KB超過時の再圧縮（Base64の約137,000文字超＝約100KB超）
         if (result.length > 137000) {
           result = canvas.toDataURL('image/jpeg', 0.5);
         }
-
         cb(result);
       };
     }
@@ -565,15 +677,33 @@ function setupFileInput(inputId, emptyId, prevId, retakeId, onDone) {
       const text = document.getElementById('submitText');
       const d = dict[currentLang];
 
-      if (!base64Front) {
-        btn.disabled = true;
-        text.innerText = d.btnNeedPhoto;
-      } else if (currentMode === 'double' && !base64Back) {
-        btn.disabled = true;
-        text.innerText = d.btnNeedBackPhoto;
-      } else {
-        btn.disabled = false;
-        text.innerText = d.btnSubmit;
+      if (currentMode === 'single') {
+        if (!base64Front) {
+          btn.disabled = true;
+          text.innerText = d.btnNeedPhoto;
+        } else {
+          btn.disabled = false;
+          text.innerText = d.btnSubmit;
+        }
+      } else if (currentMode === 'double') {
+        if (!base64Front) {
+          btn.disabled = true;
+          text.innerText = d.btnNeedPhoto;
+        } else if (!base64Back) {
+          btn.disabled = true;
+          text.innerText = d.btnNeedBackPhoto;
+        } else {
+          btn.disabled = false;
+          text.innerText = d.btnSubmit;
+        }
+      } else if (currentMode === 'batch') {
+        if (batchImagesBase64.length === 0) {
+          btn.disabled = true;
+          text.innerText = d.btnNeedBatchPhoto;
+        } else {
+          btn.disabled = false;
+          text.innerText = d.btnSubmitBatch(batchImagesBase64.length);
+        }
       }
     }
 
@@ -581,25 +711,29 @@ function setupFileInput(inputId, emptyId, prevId, retakeId, onDone) {
       const toast = document.getElementById('toast');
       toast.innerText = msg;
       toast.className = `toast show ${type}`;
-      setTimeout(() => {
-        toast.className = 'toast';
-      }, 4000);
+      setTimeout(() => { toast.className = 'toast'; }, 4000);
     }
 
-    // ★ ここが変更点: google.script.run の代わりに fetch で GAS の doPost を呼ぶ
-    function handleUpload() {
-      const images = (currentMode === 'single') ? [base64Front] : [base64Front, base64Back];
-      const d = dict[currentLang];
-
-      document.getElementById('loadingOverlay').style.display = 'flex';
-
-      fetch(GAS_URL, {
+    // fetchでGASを呼び出す共通関数（Promise化）
+    function sendToGas(images) {
+      return fetch(GAS_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // GAS側のCORS制限を避けるためtext/plainで送信
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({ images: images, lang: currentLang })
-      })
-        .then(function(res) { return res.json(); })
-        .then(function(res) {
+      }).then(res => res.json());
+    }
+
+    async function handleUpload() {
+      const d = dict[currentLang];
+      document.getElementById('loadingOverlay').style.display = 'flex';
+      document.getElementById('loadingTitle').innerText = d.loadingTitle;
+
+      if (currentMode === 'single' || currentMode === 'double') {
+        const images = (currentMode === 'single') ? [base64Front] : [base64Front, base64Back];
+        document.getElementById('loadingSubtitle').innerText = d.loadingSub;
+
+        try {
+          const res = await sendToGas(images);
           document.getElementById('loadingOverlay').style.display = 'none';
           if (res.success) {
             showToast(`✅ ${d.success}\n${res.company || ''} ${res.name || ''}`.trim(), 'success');
@@ -607,24 +741,47 @@ function setupFileInput(inputId, emptyId, prevId, retakeId, onDone) {
           } else {
             showToast(`❌ ${res.error}`, 'error');
           }
-        })
-        .catch(function(err) {
+        } catch (err) {
           document.getElementById('loadingOverlay').style.display = 'none';
           showToast(`❌ ${d.errorNet}`, 'error');
-        });
+        }
+
+      } else if (currentMode === 'batch') {
+        // 一括モード：1枚ずつ順次GASへ投げて進捗を表示
+        const total = batchImagesBase64.length;
+        let successCount = 0;
+
+        for (let i = 0; i < total; i++) {
+          document.getElementById('loadingSubtitle').innerText = `${i + 1} / ${total} 枚目を処理中...`;
+
+          try {
+            const res = await sendToGas([batchImagesBase64[i]]);
+            if (res.success) successCount++;
+          } catch (e) {
+            console.error(e);
+          }
+        }
+
+        document.getElementById('loadingOverlay').style.display = 'none';
+        showToast(`✅ ${d.successBatch(successCount)}`, 'success');
+        resetForm();
+      }
     }
 
     function resetForm() {
       base64Front = null;
       base64Back = null;
+      batchImagesBase64 = [];
       document.getElementById('fileFront').value = '';
       document.getElementById('fileBack').value = '';
+      document.getElementById('fileBatch').value = '';
       document.getElementById('prevFront').style.display = 'none';
       document.getElementById('prevBack').style.display = 'none';
       document.getElementById('emptyFront').style.display = 'flex';
       document.getElementById('emptyBack').style.display = 'flex';
       document.getElementById('retakeFront').style.display = 'none';
       document.getElementById('retakeBack').style.display = 'none';
+      document.getElementById('batchGrid').innerHTML = '';
       updateButtonState();
     }
 
