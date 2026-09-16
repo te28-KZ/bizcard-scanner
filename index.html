@@ -506,14 +506,15 @@
       updateButtonState();
     }
 
-    function setupFileInput(inputId, emptyId, prevId, retakeId, onDone) {
+function setupFileInput(inputId, emptyId, prevId, retakeId, onDone) {
       document.getElementById(inputId).addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (!file) return;
 
         const reader = new FileReader();
         reader.onload = function(evt) {
-          compressImage(evt.target.result, 1200, 0.85, function(compressedBase64) {
+          // 長辺900px・品質0.68で圧縮実行
+          compressImage(evt.target.result, 900, 0.68, function(compressedBase64) {
             const preview = document.getElementById(prevId);
             preview.src = compressedBase64;
             preview.style.display = 'block';
@@ -546,7 +547,16 @@
         canvas.height = h;
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, w, h);
-        cb(canvas.toDataURL('image/jpeg', quality));
+
+        // 初回圧縮
+        let result = canvas.toDataURL('image/jpeg', quality);
+
+        // 100KB超過時の再圧縮（Base64の約137,000文字超＝約100KB超）
+        if (result.length > 137000) {
+          result = canvas.toDataURL('image/jpeg', 0.5);
+        }
+
+        cb(result);
       };
     }
 
