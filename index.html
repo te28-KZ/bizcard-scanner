@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>名刺スキャナー / Quét danh thiếp</title>
+
+  <!-- PWA & アプリアイコン設定（実ファイル参照版） -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="名刺スキャン">
+  <meta name="theme-color" content="#0284c7">
+
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+  <link rel="apple-touch-icon" href="icon-180.png">
+
+  <style>
+    :root {
+      --bg-main: #f8fafc;
+      --surface: #ffffff;
+      --primary: #1e293b;
+      --primary-accent: #2563eb;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --card-bg: #f1f5f9;
+      --card-active: #e2e8f0;
+      --success: #16a34a;
+      --error: #ef4444;
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--bg-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: var(--text-main);
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+      padding-bottom: 100px;
+    }
+
+    .app-container {
+      width: 100%;
+      max-width: 440px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 0;
+    }
+    .header h1 {
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin: 0;
+      color: var(--primary);
+    }
+
+    .lang-switcher {
+      display: flex;
+      background: #e2e8f0;
+      padding: 3px;
+      border-radius: 9999px;
+      gap: 2px;
+    }
+    .lang-btn {
+      border: none;
+      background: transparent;
+      padding: 6px 12px;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .lang-btn.active {
+      background: var(--surface);
+      color: var(--primary);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .mode-tabs {
+      display: flex;
+      background: #e2e8f0;
+      padding: 4px;
+      border-radius: 12px;
+      gap: 4px;
+    }
+    .mode-btn {
+      flex: 1;
+      border: none;
+      background: transparent;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .mode-btn:active {
+      transform: scale(0.98);
+    }
+    .mode-btn.active {
+      background: var(--surface);
+      color: var(--primary-accent);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .scan-card {
+      background: var(--surface);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: var(--shadow-md);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .card-label {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .card-label span.badge {
+      font-size: 0.7rem;
+      padding: 2px 8px;
+      background: #e0e7ff;
+      color: var(--primary-accent);
+      border-radius: 6px;
+    }
+
+    .dropzone {
+      position: relative;
+      background: var(--card-bg);
+      border: 1px dashed #cbd5e1;
+      border-radius: 12px;
+      min-height: 170px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      overflow: hidden;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    .dropzone:active {
+      background: var(--card-active);
+      transform: scale(0.99);
+    }
+    .dropzone input[type="file"] {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .dropzone-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-muted);
+      pointer-events: none;
+    }
+    .dropzone-empty svg {
+      width: 38px;
+      height: 38px;
+      stroke: var(--text-muted);
+      stroke-width: 1.75;
+    }
+    .dropzone-empty span {
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .dropzone-preview {
+      display: none;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      max-height: 220px;
+      background: #000000;
+    }
+
+    .retake-overlay {
+      position: absolute;
+      bottom: 8px;
+      right: 8px;
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(4px);
+      color: #ffffff;
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      pointer-events: none;
+      display: none;
+    }
+
+    .sticky-footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-top: 1px solid var(--border);
+      padding: 12px 16px;
+      display: flex;
+      justify-content: center;
+      z-index: 50;
+    }
+    .footer-inner {
+      width: 100%;
+      max-width: 440px;
+    }
+
+    .submit-btn {
+      width: 100%;
+      background: var(--primary-accent);
+      color: #ffffff;
+      border: none;
+      border-radius: 12px;
+      padding: 14px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.15s ease;
+    }
+    .submit-btn:disabled {
+      background: #94a3b8;
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+    .submit-btn:not(:disabled):active {
+      transform: scale(0.98);
+      box-shadow: 0 2px 6px rgba(37, 99, 235, 0.2);
+    }
+
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    .loading-box {
+      background: var(--surface);
+      border-radius: 16px;
+      padding: 24px;
+      width: 80%;
+      max-width: 300px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      box-shadow: var(--shadow-lg);
+      text-align: center;
+    }
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3.5px solid #e2e8f0;
+      border-top-color: var(--primary-accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .loading-text {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--primary);
+      margin: 0;
+    }
+    .loading-sub {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin: -8px 0 0 0;
+    }
+
+    .toast-container {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      right: 16px;
+      display: flex;
+      justify-content: center;
+      pointer-events: none;
+      z-index: 110;
+    }
+    .toast {
+      background: var(--primary);
+      color: #ffffff;
+      padding: 12px 18px;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      box-shadow: var(--shadow-lg);
+      transform: translateY(-50px);
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      max-width: 380px;
+      pointer-events: auto;
+      white-space: pre-line;
+    }
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+    .toast.success {
+      background: var(--success);
+    }
+    .toast.error {
+      background: var(--error);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-container">
+    <header class="header">
+      <h1 id="appTitle">BizCard Scan</h1>
+      <div class="lang-switcher">
+        <button type="button" class="lang-btn active" id="btnJP" onclick="switchLang('JP')">🇯🇵 日本語</button>
+        <button type="button" class="lang-btn" id="btnVN" onclick="switchLang('VN')">🇻🇳 Tiếng Việt</button>
+      </div>
+    </header>
+
+    <nav class="mode-tabs">
+      <button type="button" class="mode-btn active" id="modeSingle" onclick="switchMode('single')">片面撮影</button>
+      <button type="button" class="mode-btn" id="modeDouble" onclick="switchMode('double')">両面撮影</button>
+    </nav>
+
+    <div class="scan-card">
+      <div class="card-label">
+        <span id="frontTitle">表面 (Front)</span>
+        <span class="badge" id="frontBadge">必須 / Required</span>
+      </div>
+      <div class="dropzone" id="dzFront">
+        <input type="file" id="fileFront" accept="image/*" capture="environment">
+        <div class="dropzone-empty" id="emptyFront">
+          <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+            <circle cx="12" cy="13" r="4"></circle>
+          </svg>
+          <span id="tapFrontText">タップして撮影</span>
+        </div>
+        <img id="prevFront" class="dropzone-preview" alt="Front Preview">
+        <div class="retake-overlay" id="retakeFront">再撮影 / Retake</div>
+      </div>
+    </div>
+
+    <div class="scan-card" id="cardBack" style="display: none;">
+      <div class="card-label">
+        <span id="backTitle">裏面 (Back)</span>
+        <span class="badge" id="backBadge">必須 / Required</span>
+      </div>
+      <div class="dropzone" id="dzBack">
+        <input type="file" id="fileBack" accept="image/*" capture="environment">
+        <div class="dropzone-empty" id="emptyBack">
+          <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+            <circle cx="12" cy="13" r="4"></circle>
+          </svg>
+          <span id="tapBackText">タップして撮影</span>
+        </div>
+        <img id="prevBack" class="dropzone-preview" alt="Back Preview">
+        <div class="retake-overlay" id="retakeBack">再撮影 / Retake</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sticky-footer">
+    <div class="footer-inner">
+      <button type="button" class="submit-btn" id="submitBtn" disabled onclick="handleUpload()">
+        <span id="submitText">写真を撮影してください</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-box">
+      <div class="spinner"></div>
+      <p class="loading-text" id="loadingTitle">AI解析中...</p>
+      <p class="loading-sub" id="loadingSubtitle">名刺データを読み取っています</p>
+    </div>
+  </div>
+
+  <div class="toast-container">
+    <div class="toast" id="toast"></div>
+  </div>
+
+  <script>
+    // ▼▼▼ ここをあなたのGASデプロイURL（.../exec で終わるもの）に書き換えてください ▼▼▼
+    const GAS_URL = "ここにGASのWebアプリURLを貼り付け";
+    // ▲▲▲ ここまで ▲▲▲
+
+    let currentLang = 'JP';
+    let currentMode = 'single';
+    let base64Front = null;
+    let base64Back = null;
+
+    const dict = {
+      JP: {
+        modeSingle: '片面撮影',
+        modeDouble: '両面撮影',
+        frontTitle: '表面',
+        backTitle: '裏面',
+        badgeRequired: '必須',
+        tapToScan: 'タップして撮影',
+        retake: '再撮影',
+        btnNeedPhoto: '写真を撮影してください',
+        btnNeedBackPhoto: '裏面を撮影してください',
+        btnSubmit: '読み込んで登録する (JP)',
+        loadingTitle: 'AI解析中...',
+        loadingSub: 'スプレッドシートへ登録しています',
+        success: '登録が完了しました！',
+        errorNet: '通信エラーが発生しました'
+      },
+      VN: {
+        modeSingle: 'Chụp 1 mặt',
+        modeDouble: 'Chụp 2 mặt',
+        frontTitle: 'Mặt trước',
+        backTitle: 'Mặt sau',
+        badgeRequired: 'Bắt buộc',
+        tapToScan: 'Chạm để chụp ảnh',
+        retake: 'Chụp lại',
+        btnNeedPhoto: 'Vui lòng chụp ảnh danh thiếp',
+        btnNeedBackPhoto: 'Vui lòng chụp thêm mặt sau',
+        btnSubmit: 'Quét và Lưu vào VN',
+        loadingTitle: 'Đang phân tích...',
+        loadingSub: 'Đang lưu dữ liệu vào Google Sheet',
+        success: 'Đã lưu thành công!',
+        errorNet: 'Đã xảy ra lỗi kết nối'
+      }
+    };
+
+    function switchLang(lang) {
+      currentLang = lang;
+      document.getElementById('btnJP').classList.toggle('active', lang === 'JP');
+      document.getElementById('btnVN').classList.toggle('active', lang === 'VN');
+
+      const d = dict[currentLang];
+      document.getElementById('modeSingle').innerText = d.modeSingle;
+      document.getElementById('modeDouble').innerText = d.modeDouble;
+      document.getElementById('frontTitle').innerText = d.frontTitle;
+      document.getElementById('backTitle').innerText = d.backTitle;
+      document.getElementById('frontBadge').innerText = d.badgeRequired;
+      document.getElementById('backBadge').innerText = d.badgeRequired;
+      document.getElementById('tapFrontText').innerText = d.tapToScan;
+      document.getElementById('tapBackText').innerText = d.tapToScan;
+      document.getElementById('retakeFront').innerText = d.retake;
+      document.getElementById('retakeBack').innerText = d.retake;
+      document.getElementById('loadingTitle').innerText = d.loadingTitle;
+      document.getElementById('loadingSubtitle').innerText = d.loadingSub;
+
+      updateButtonState();
+    }
+
+    function switchMode(mode) {
+      currentMode = mode;
+      document.getElementById('modeSingle').classList.toggle('active', mode === 'single');
+      document.getElementById('modeDouble').classList.toggle('active', mode === 'double');
+      document.getElementById('cardBack').style.display = mode === 'double' ? 'flex' : 'none';
+
+      updateButtonState();
+    }
+
+    function setupFileInput(inputId, emptyId, prevId, retakeId, onDone) {
+      document.getElementById(inputId).addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+          compressImage(evt.target.result, 1200, 0.85, function(compressedBase64) {
+            const preview = document.getElementById(prevId);
+            preview.src = compressedBase64;
+            preview.style.display = 'block';
+            document.getElementById(emptyId).style.display = 'none';
+            document.getElementById(retakeId).style.display = 'block';
+
+            onDone(compressedBase64);
+            updateButtonState();
+          });
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    setupFileInput('fileFront', 'emptyFront', 'prevFront', 'retakeFront', (b64) => { base64Front = b64; });
+    setupFileInput('fileBack', 'emptyBack', 'prevBack', 'retakeBack', (b64) => { base64Back = b64; });
+
+    function compressImage(src, maxWidth, quality, cb) {
+      const img = new Image();
+      img.src = src;
+      img.onload = function() {
+        let w = img.width;
+        let h = img.height;
+        if (w > maxWidth) {
+          h = Math.round((h * maxWidth) / w);
+          w = maxWidth;
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        cb(canvas.toDataURL('image/jpeg', quality));
+      };
+    }
+
+    function updateButtonState() {
+      const btn = document.getElementById('submitBtn');
+      const text = document.getElementById('submitText');
+      const d = dict[currentLang];
+
+      if (!base64Front) {
+        btn.disabled = true;
+        text.innerText = d.btnNeedPhoto;
+      } else if (currentMode === 'double' && !base64Back) {
+        btn.disabled = true;
+        text.innerText = d.btnNeedBackPhoto;
+      } else {
+        btn.disabled = false;
+        text.innerText = d.btnSubmit;
+      }
+    }
+
+    function showToast(msg, type = 'success') {
+      const toast = document.getElementById('toast');
+      toast.innerText = msg;
+      toast.className = `toast show ${type}`;
+      setTimeout(() => {
+        toast.className = 'toast';
+      }, 4000);
+    }
+
+    // ★ ここが変更点: google.script.run の代わりに fetch で GAS の doPost を呼ぶ
+    function handleUpload() {
+      const images = (currentMode === 'single') ? [base64Front] : [base64Front, base64Back];
+      const d = dict[currentLang];
+
+      document.getElementById('loadingOverlay').style.display = 'flex';
+
+      fetch(GAS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // GAS側のCORS制限を避けるためtext/plainで送信
+        body: JSON.stringify({ images: images, lang: currentLang })
+      })
+        .then(function(res) { return res.json(); })
+        .then(function(res) {
+          document.getElementById('loadingOverlay').style.display = 'none';
+          if (res.success) {
+            showToast(`✅ ${d.success}\n${res.company || ''} ${res.name || ''}`.trim(), 'success');
+            resetForm();
+          } else {
+            showToast(`❌ ${res.error}`, 'error');
+          }
+        })
+        .catch(function(err) {
+          document.getElementById('loadingOverlay').style.display = 'none';
+          showToast(`❌ ${d.errorNet}`, 'error');
+        });
+    }
+
+    function resetForm() {
+      base64Front = null;
+      base64Back = null;
+      document.getElementById('fileFront').value = '';
+      document.getElementById('fileBack').value = '';
+      document.getElementById('prevFront').style.display = 'none';
+      document.getElementById('prevBack').style.display = 'none';
+      document.getElementById('emptyFront').style.display = 'flex';
+      document.getElementById('emptyBack').style.display = 'flex';
+      document.getElementById('retakeFront').style.display = 'none';
+      document.getElementById('retakeBack').style.display = 'none';
+      updateButtonState();
+    }
+
+    // 初期化
+    switchLang('JP');
+  </script>
+</body>
+</html>
