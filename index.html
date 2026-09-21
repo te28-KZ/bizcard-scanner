@@ -57,7 +57,7 @@
       width: 100%;
       max-width: 440px;
       padding: 16px;
-      display: flex;
+      display: none; /* ログイン後にJSでflexへ切り替え */
       flex-direction: column;
       gap: 16px;
     }
@@ -67,6 +67,7 @@
       justify-content: space-between;
       align-items: center;
       padding: 4px 0;
+      gap: 8px;
     }
     .header h1 {
       font-size: 1.25rem;
@@ -76,12 +77,35 @@
       color: var(--primary);
     }
 
+    .user-chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+    .user-chip .user-name {
+      font-weight: 700;
+      color: var(--primary);
+    }
+    .logout-link {
+      background: none;
+      border: none;
+      color: var(--primary-accent);
+      font-size: 0.72rem;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 2px 0;
+    }
+
     .lang-switcher {
       display: flex;
       background: #e2e8f0;
       padding: 3px;
       border-radius: 9999px;
       gap: 2px;
+      flex-shrink: 0;
     }
     .lang-btn {
       border: none;
@@ -483,13 +507,173 @@
     }
     .toast.success { background: var(--success); }
     .toast.error { background: var(--error); }
+
+    /* ==== ログイン画面 ==== */
+    .login-overlay {
+      position: fixed;
+      inset: 0;
+      background: var(--bg-main);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      padding: 20px;
+    }
+    .login-box {
+      width: 100%;
+      max-width: 360px;
+      background: var(--surface);
+      border-radius: 20px;
+      padding: 28px 24px;
+      box-shadow: var(--shadow-lg);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .login-header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+    .login-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      background: #e0e7ff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .login-icon svg {
+      width: 24px;
+      height: 24px;
+      stroke: var(--primary-accent);
+      stroke-width: 1.8;
+    }
+    .login-title {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: var(--primary);
+      margin: 0;
+    }
+    .login-sub {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin: 0;
+      text-align: center;
+    }
+    .login-lang-row {
+      display: flex;
+      justify-content: center;
+    }
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .field-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+    .field-input {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--card-bg);
+      font-size: 0.95rem;
+      color: var(--text-main);
+      outline: none;
+      transition: border-color 0.15s ease;
+      user-select: text;
+    }
+    .field-input:focus {
+      border-color: var(--primary-accent);
+      background: var(--surface);
+    }
+    .login-submit-btn {
+      width: 100%;
+      background: var(--primary-accent);
+      color: #ffffff;
+      border: none;
+      border-radius: 12px;
+      padding: 14px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 4px;
+      transition: all 0.15s ease;
+    }
+    .login-submit-btn:disabled {
+      background: #94a3b8;
+      cursor: not-allowed;
+    }
+    .login-submit-btn:not(:disabled):active {
+      transform: scale(0.98);
+    }
+    .login-error {
+      font-size: 0.78rem;
+      color: var(--error);
+      text-align: center;
+      min-height: 16px;
+      margin: 0;
+    }
   </style>
 </head>
 <body>
 
-  <div class="app-container">
+  <!-- ==== ログイン画面 ==== -->
+  <div class="login-overlay" id="loginOverlay">
+    <div class="login-box">
+      <div class="login-lang-row">
+        <div class="lang-switcher">
+          <button type="button" class="lang-btn active" id="loginBtnJP" onclick="switchLang('JP')">🇯🇵 日本語</button>
+          <button type="button" class="lang-btn" id="loginBtnVN" onclick="switchLang('VN')">🇻🇳 Tiếng Việt</button>
+        </div>
+      </div>
+
+      <div class="login-header">
+        <div class="login-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="5" width="18" height="14" rx="2"></rect>
+            <circle cx="9" cy="12" r="2"></circle>
+            <path d="M14 10h4M14 14h4"></path>
+          </svg>
+        </div>
+        <p class="login-title" id="loginTitle">BizCard Scan</p>
+        <p class="login-sub" id="loginSubtitle">社員番号でログインしてください</p>
+      </div>
+
+      <div class="field-group">
+        <span class="field-label" id="labelName">氏名</span>
+        <input type="text" class="field-input" id="loginName" placeholder="山田 太郎" autocomplete="name">
+      </div>
+
+      <div class="field-group">
+        <span class="field-label" id="labelEmployeeId">社員番号</span>
+        <input type="text" class="field-input" id="loginEmployeeId" placeholder="1234" inputmode="numeric" autocomplete="off">
+      </div>
+
+      <p class="login-error" id="loginError"></p>
+
+      <button type="button" class="login-submit-btn" id="loginSubmitBtn" onclick="doLogin()">
+        <span id="loginBtnText">ログイン</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="app-container" id="appContainer">
     <header class="header">
-      <h1 id="appTitle">BizCard Scan</h1>
+      <div>
+        <h1 id="appTitle">BizCard Scan</h1>
+        <div class="user-chip">
+          <span id="welcomeText">ようこそ、</span><span class="user-name" id="userNameDisplay"></span>
+          <button type="button" class="logout-link" id="logoutBtn" onclick="doLogout()">ログアウト</button>
+        </div>
+      </div>
       <div class="lang-switcher">
         <button type="button" class="lang-btn active" id="btnJP" onclick="switchLang('JP')">🇯🇵 日本語</button>
         <button type="button" class="lang-btn" id="btnVN" onclick="switchLang('VN')">🇻🇳 Tiếng Việt</button>
@@ -582,7 +766,7 @@
   </div>
 
   <!-- 下部固定送信ボタン -->
-  <div class="sticky-footer">
+  <div class="sticky-footer" id="stickyFooter" style="display:none;">
     <div class="footer-inner">
       <button type="button" class="submit-btn" id="submitBtn" disabled onclick="handleUpload()">
         <span id="submitText">写真を撮影してください</span>
@@ -618,6 +802,10 @@
     let isCapturing = false;
     let autoUploadTriggered = false;
 
+    // ==== 認証関連の状態 ====
+    let authToken = localStorage.getItem('bizcard_token') || null;
+    let authName = localStorage.getItem('bizcard_name') || null;
+
     const dict = {
       JP: {
         modeSingle: '片面撮影',
@@ -645,7 +833,19 @@
         errorNet: '通信エラーが発生しました',
         errorLimit: '連続撮影は最大15枚までです',
         cameraError: 'カメラを起動できませんでした。従来の方法で撮影してください。',
-        limitReachedAuto: '15枚に達しました。自動でアップロードします。'
+        limitReachedAuto: '15枚に達しました。自動でアップロードします。',
+        // ログイン画面
+        loginTitle: 'BizCard Scan',
+        loginSubtitle: '氏名と社員番号でログインしてください',
+        labelName: '氏名',
+        labelEmployeeId: '社員番号',
+        namePlaceholder: '山田 太郎',
+        loginBtn: 'ログイン',
+        loginBtnLoading: '確認中...',
+        loginNeedBoth: '氏名と社員番号を入力してください',
+        welcomeText: 'ようこそ、',
+        logout: 'ログアウト',
+        sessionExpired: 'セッションが切れました。再度ログインしてください。'
       },
       VN: {
         modeSingle: 'Chụp 1 mặt',
@@ -673,7 +873,19 @@
         errorNet: 'Đã xảy ra lỗi kết nối',
         errorLimit: 'Tối đa có thể chụp liên tục 15 tấm ảnh',
         cameraError: 'Không thể khởi động camera. Vui lòng chụp theo cách thông thường.',
-        limitReachedAuto: 'Đã đạt 15 ảnh. Đang tự động tải lên.'
+        limitReachedAuto: 'Đã đạt 15 ảnh. Đang tự động tải lên.',
+        // ログイン画面
+        loginTitle: 'BizCard Scan',
+        loginSubtitle: 'Vui lòng đăng nhập bằng họ tên và mã nhân viên',
+        labelName: 'Họ và tên',
+        labelEmployeeId: 'Mã nhân viên',
+        namePlaceholder: 'Nguyễn Văn A',
+        loginBtn: 'Đăng nhập',
+        loginBtnLoading: 'Đang kiểm tra...',
+        loginNeedBoth: 'Vui lòng nhập họ tên và mã nhân viên',
+        welcomeText: 'Xin chào, ',
+        logout: 'Đăng xuất',
+        sessionExpired: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
       }
     };
 
@@ -681,6 +893,8 @@
       currentLang = lang;
       document.getElementById('btnJP').classList.toggle('active', lang === 'JP');
       document.getElementById('btnVN').classList.toggle('active', lang === 'VN');
+      document.getElementById('loginBtnJP').classList.toggle('active', lang === 'JP');
+      document.getElementById('loginBtnVN').classList.toggle('active', lang === 'VN');
 
       const d = dict[currentLang];
       document.getElementById('modeSingle').innerText = d.modeSingle;
@@ -697,6 +911,16 @@
       document.getElementById('retakeBack').innerText = d.retake;
       document.getElementById('startCameraBtn').innerText = d.startCamera;
       document.getElementById('cameraFinishBtn').innerText = d.finishCamera;
+
+      // ログイン画面のテキスト
+      document.getElementById('loginTitle').innerText = d.loginTitle;
+      document.getElementById('loginSubtitle').innerText = d.loginSubtitle;
+      document.getElementById('labelName').innerText = d.labelName;
+      document.getElementById('labelEmployeeId').innerText = d.labelEmployeeId;
+      document.getElementById('loginName').placeholder = d.namePlaceholder;
+      document.getElementById('loginBtnText').innerText = d.loginBtn;
+      document.getElementById('welcomeText').innerText = d.welcomeText;
+      document.getElementById('logoutBtn').innerText = d.logout;
 
       updateBatchStatusText();
       updateButtonState();
@@ -986,11 +1210,87 @@
       setTimeout(() => { toast.className = 'toast'; }, 4000);
     }
 
+    // ==== ログイン処理 ====
+
+    function showLoginScreen() {
+      document.getElementById('loginOverlay').style.display = 'flex';
+      document.getElementById('appContainer').style.display = 'none';
+      document.getElementById('stickyFooter').style.display = 'none';
+    }
+
+    function showAppScreen() {
+      document.getElementById('loginOverlay').style.display = 'none';
+      document.getElementById('appContainer').style.display = 'flex';
+      document.getElementById('stickyFooter').style.display = 'flex';
+      document.getElementById('userNameDisplay').innerText = authName || '';
+    }
+
+    async function doLogin() {
+      const d = dict[currentLang];
+      const nameInput = document.getElementById('loginName');
+      const idInput = document.getElementById('loginEmployeeId');
+      const errorEl = document.getElementById('loginError');
+      const btn = document.getElementById('loginSubmitBtn');
+      const btnText = document.getElementById('loginBtnText');
+
+      const name = nameInput.value.trim();
+      const employeeId = idInput.value.trim();
+
+      errorEl.innerText = '';
+
+      if (!name || !employeeId) {
+        errorEl.innerText = d.loginNeedBoth;
+        return;
+      }
+
+      btn.disabled = true;
+      btnText.innerText = d.loginBtnLoading;
+
+      try {
+        const res = await fetch(GAS_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'login', name: name, employeeId: employeeId })
+        }).then(r => r.json());
+
+        if (res.success) {
+          authToken = res.token;
+          authName = res.name;
+          localStorage.setItem('bizcard_token', authToken);
+          localStorage.setItem('bizcard_name', authName);
+          showAppScreen();
+        } else {
+          errorEl.innerText = res.error || d.loginNeedBoth;
+        }
+      } catch (err) {
+        errorEl.innerText = d.errorNet;
+      } finally {
+        btn.disabled = false;
+        btnText.innerText = d.loginBtn;
+      }
+    }
+
+    function doLogout() {
+      authToken = null;
+      authName = null;
+      localStorage.removeItem('bizcard_token');
+      localStorage.removeItem('bizcard_name');
+      document.getElementById('loginName').value = '';
+      document.getElementById('loginEmployeeId').value = '';
+      showLoginScreen();
+    }
+
+    // セッション切れらしきエラーかどうかを緩く判定
+    function looksLikeSessionExpired(errMsg) {
+      if (!errMsg) return false;
+      return errMsg.indexOf('セッション') !== -1 || errMsg.indexOf('phiên') !== -1 || errMsg.toLowerCase().indexOf('session') !== -1;
+    }
+
     function sendToGas(images) {
       return fetch(GAS_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ images: images, lang: currentLang })
+        body: JSON.stringify({ images: images, lang: currentLang, token: authToken })
       }).then(res => res.json());
     }
 
@@ -1009,6 +1309,9 @@
           if (res.success) {
             showToast(`✅ ${d.success}\n${res.company || ''} ${res.name || ''}`.trim(), 'success');
             resetForm();
+          } else if (looksLikeSessionExpired(res.error)) {
+            doLogout();
+            showToast(`⚠️ ${d.sessionExpired}`, 'error');
           } else {
             showToast(`❌ ${res.error}`, 'error');
           }
@@ -1021,20 +1324,32 @@
         // 連続撮影した画像を1枚ずつGASへ送信（キュー処理）
         const total = batchImages.length;
         let successCount = 0;
+        let sessionLost = false;
 
         for (let i = 0; i < total; i++) {
           document.getElementById('loadingSubtitle').innerText = `${i + 1} / ${total} 枚目を処理中...`;
 
           try {
             const res = await sendToGas([batchImages[i]]);
-            if (res.success) successCount++;
+            if (res.success) {
+              successCount++;
+            } else if (looksLikeSessionExpired(res.error)) {
+              sessionLost = true;
+              break;
+            }
           } catch (e) {
             console.error(e);
           }
         }
 
         document.getElementById('loadingOverlay').style.display = 'none';
-        showToast(`✅ ${d.successBatch(successCount)}`, 'success');
+
+        if (sessionLost) {
+          doLogout();
+          showToast(`⚠️ ${d.sessionExpired}`, 'error');
+        } else {
+          showToast(`✅ ${d.successBatch(successCount)}`, 'success');
+        }
         resetForm();
       }
     }
@@ -1065,6 +1380,12 @@
 
     // 初期化
     switchLang('JP');
+
+    if (authToken && authName) {
+      showAppScreen();
+    } else {
+      showLoginScreen();
+    }
 
     if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js'); }
   </script>
